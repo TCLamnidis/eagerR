@@ -159,3 +159,98 @@ read_damageprofiler_json <- function(dmgprof_json, library_id = '') {
 
   dmgprof_results
 }
+
+#' Read all Damageprofiles JSONs in a DamageProfiler results directory into a tibble.
+#'
+#' @param result_dir character. The path to the root DamageProfiler results directory for an eager run.
+#'
+#' @return A Tibble containing the JSON results (compiled using \link[eagerR]{read_damageprofiler_json}) for all
+#'     libraries in the eager run.
+#' @export
+#'
+#' @importFrom rlang .data
+#' @importFrom magrittr "%>%"
+read_damageprofiler_jsons_from_dir <- function(result_dir) {
+  ## Check the dir exists
+  check_file_exists(result_dir, "read_damageprofiler_json_from_dir")
+
+  ## Find all files in result dir that end in .json and read into a tibble column
+  dmg_json_list <- list.files(result_dir, pattern="\\.json$", full.names = T, recursive=T) %>%
+  tibble::as_tibble() %>%
+  ## Infer the library ID from the result directory name. First split at "_rmdup", then take the basename of the first element.
+    ## This will not work if the user's eager-results directory path includes '_rmdup'. This should be a very niche case... :crossed_fingers:
+  dplyr::mutate(lib_id=basename(stringr::str_split(.data$value, "_rmdup", simplify=TRUE)[,1]))
+
+  damage_results <- dmg_json_list %>%
+    purrr::pmap_dfr(., ~read_damageprofiler_json(..1, ..2))
+  damage_results
+}
+
+#' Read nf-core/eager endorspy results JSON
+#'
+#' @param endorspy_json character. The path to the input endorspy result json for the specified library.
+#' @param library_id character. The Library_ID of the library the results are based on.
+#'
+#' @return A Tibble containing the endorspy results for the specified library.
+#' @export
+#' @importFrom rlang .data
+#' @importFrom magrittr "%>%"
+read_endorspy_json <- function(endorspy_json, library_id = '') {
+  ## Damageprofiler results are in files for each library, so parsing the JSON is done individually,
+  ##   and can be made into a tibble with purrr::map_dfr/rbind
+
+  ## End execution if input file is not found
+  check_file_exists(endorspy_json, "read_endorspy_json")
+
+  ## lib_id MUST be provided
+  if (library_id == '' ) {
+    stop(paste0("[read_endorspy_json()]: No library id provided. Please provide a valid library id."))
+  }
+
+  endorspy_json_data <- jsonlite::read_json(endorspy_json, simplifyVector=F) ## Raw JSON data
+
+  endorspy_results <- do.call(cbind, endorspy_json_data['data']) %>%
+    tibble::as_tibble() %>%
+    ## All values are in a list column called 'data'. To get multiple columns I need to transpose this list, turn it to a dataframe and unnest it to multiple list columns.
+    dplyr::mutate(r = purrr::map(.data$data, ~ data.frame(t(.)))) %>%
+    tidyr::unnest(.data$r) %>%
+    ## Drop the fully nested column
+    dplyr::select(-.data$data) %>%
+    ## Add library ID
+    dplyr::mutate(
+      library_id = library_id
+    ) %>%
+    ## Standardise column names
+    dplyr::rename_with(., ~standardise_column_names(..1, prefix="endorspy")) %>%
+    ## Finally unnest the final nested columns to get a standard non-listed tibble
+    ## Unnest after renaming so column names are more likely to stay consistent through time :crossed_fingers:
+    tidyr::unnest(
+      cols = dplyr::everything() ## Should work even if no '_post' column exists
+    )
+}
+
+#' Read all endorspy JSONs in an endorspy results directory into a tibble.
+#'
+#' @param result_dir character. The path to the endorspy results directory for an eager run.
+#'
+#' @return A Tibble containing the JSON results (compiled using \link[eagerR]{read_endorspy_json}) for all
+#'     libraries in the eager run.
+#' @export
+#'
+#' @importFrom rlang .data
+#' @importFrom magrittr "%>%"
+read_endorspy_jsons_from_dir <- function(result_dir) {
+  ## Check the dir exists
+  check_file_exists(result_dir, "read_endorspy_jsons_from_dir")
+
+  ## Find all files in result dir that end in .json and read into a tibble column
+  endorspy_json_list <- list.files(result_dir, pattern="_endogenous_dna_mqc\\.json$", full.names = T, recursive=T) %>%
+    tibble::as_tibble() %>%
+    ## Infer the library ID from the result file name. Take the basename, and then remove the suffix.
+    dplyr::mutate(lib_id=basename(.data$value) %>% sub("_endogenous_dna_mqc.json$", '', .))
+
+  endorspy_results <- endorspy_json_list %>%
+    purrr::pmap_dfr(., ~read_endorspy_json(..1, ..2))
+
+  endorspy_results
+}
