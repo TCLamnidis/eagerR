@@ -18,18 +18,7 @@ read_sexdet_json <- function(sexdet_json) {
     ## Flatten columns from single-value lists to value columns
     ## Unnest after renaming so column names are more likely to stay consistent through time :crossed_fingers:
     tidyr::unnest(
-      cols = c(
-        `.data$sexdet_snps_autosomal`,
-        `.data$sexdet_xsnps`,
-        `.data$sexdet_ysnps`,
-        `.data$sexdet_nr_aut`,
-        `.data$sexdet_nrx`,
-        `.data$sexdet_nry`,
-        `.data$sexdet_ratex`,
-        `.data$sexdet_ratey`,
-        `.data$sexdet_rateerrx`,
-        `.data$sexdet_rateerry`
-      )
+      cols = dplyr::everything()
     )
   sexdet_results
 }
@@ -59,17 +48,7 @@ read_angsd_cont_json <- function(angsd_cont_json) {
     ## Finally unnest the final nested columns to get a standard non-listed tibble
     ## Unnest after renaming so column names are more likely to stay consistent through time :crossed_fingers:
     tidyr::unnest(
-      cols = c(
-        `.data$angsd_num_snps`,
-        `.data$angsd_method1_mom_estimate`,
-        `.data$angsd_method1_mom_se`,
-        `.data$angsd_method1_ml_estimate`,
-        `.data$angsd_method1_ml_se`,
-        `.data$angsd_method2_mom_estimate`,
-        `.data$angsd_method2_mom_se`,
-        `.data$angsd_method2_ml_estimate`,
-        `.data$angsd_method2_ml_se`
-      )
+      cols = dplyr::everything()
     ) %>%
     ## Make N/As into native R NA
     dplyr::na_if("N/A")
@@ -88,11 +67,17 @@ read_snp_coverage_json <- function(snp_cov_json) {
   ## End execution if input file is not found
   check_file_exists(snp_cov_json, "read_snp_coverage_json")
 
+  ## Infer library strandedness from file name
+  genotype_strandedness <- basename(snp_cov_json) %>% sub('_eigenstrat_coverage_mqc.json$','', .)
+
   snp_coverage_json_data <- jsonlite::read_json(snp_cov_json, simplifyVector=T) ## Raw JSON data
   snp_coverage_results <- do.call(cbind, snp_coverage_json_data['data']) %>%
     tibble::as_tibble(rownames="sample_name") %>%
     ## All values are in a list column called 'data'. To get multiple columns I need to transpose this list, turn it to a dataframe and unnest it to multiple list columns.
-    dplyr::mutate(r = purrr::map(.data$data, ~ data.frame(t(.)))) %>%
+    dplyr::mutate(
+      r = purrr::map(.data$data, ~ data.frame(t(.))),
+      strandedness = genotype_strandedness
+      ) %>%
     tidyr::unnest(.data$r) %>%
     ## Drop the fully nested column
     dplyr::select(-.data$data) %>%
@@ -101,10 +86,7 @@ read_snp_coverage_json <- function(snp_cov_json) {
     ## Finally unnest the final nested columns to get a standard non-listed tibble
     ## Unnest after renaming so column names are more likely to stay consistent through time :crossed_fingers:
     tidyr::unnest(
-      cols = c(
-        `.data$snpcov_covered_snps`,
-        `.data$snpcov_total_snps`
-        )
+      cols = dplyr::everything()
       )
 
   snp_coverage_results
@@ -149,8 +131,8 @@ read_damageprofiler_json <- function(dmgprof_json, library_id = '') {
       dmg_5p = dmgprof_json_data['dmg_5p'],
       dmg_3p = dmgprof_json_data['dmg_3p']
     ) %>%
-    ## Unnest dmg columns
-    tidyr::unnest(cols=c(.data$dmg_5p,.data$dmg_3p)) %>%
+    ## Unnest dmg columns only
+    tidyr::unnest(cols=c(.data$dmg_5p, .data$dmg_3p)) %>%
     dplyr::mutate(x=dplyr::row_number()) %>%
     ## Use row number to infer the bp
     tidyr::pivot_wider(values_from=c(.data$dmg_5p, .data$dmg_3p), names_from=.data$x) %>%
