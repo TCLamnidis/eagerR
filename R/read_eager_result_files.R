@@ -83,6 +83,8 @@ read_snp_coverage_json <- function(snp_cov_json) {
     dplyr::select(-.data$data) %>%
     ## Standardise column names
     dplyr::rename_with(., ~standardise_column_names(..1, prefix="snpcov")) %>%
+    ## Set column types
+    dplyr::mutate(dplyr::across(.cols=c(.data$snpcov_covered_snps, .data$snpcov_total_snps), base::as.integer)) %>%
     ## Finally unnest the final nested columns to get a standard non-listed tibble
     ## Unnest after renaming so column names are more likely to stay consistent through time :crossed_fingers:
     tidyr::unnest(
@@ -128,8 +130,8 @@ read_damageprofiler_json <- function(dmgprof_json, library_id = '') {
       lendist_fw = dmgprof_json_data['lendist_fw'],
       lendist_rv = dmgprof_json_data['lendist_rv'],
       summary_stats = dmgprof_json_data['summary_stats'],
-      dmg_5p = dmgprof_json_data['dmg_5p'],
-      dmg_3p = dmgprof_json_data['dmg_3p']
+      dmg_5p = dmgprof_json_data[['dmg_5p']],
+      dmg_3p = dmgprof_json_data[['dmg_3p']]
     ) %>%
     ## Unnest dmg columns only
     tidyr::unnest(cols=c(.data$dmg_5p, .data$dmg_3p)) %>%
