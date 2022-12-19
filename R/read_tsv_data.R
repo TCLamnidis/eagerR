@@ -83,13 +83,13 @@ infer_merged_bam_names <- function(parsed_tsv, run_trim_bam = NA) {
       ## Bam name of initial merge
       initial_merge_bam = dplyr::case_when(
         ## No merging, no trimming BOB001.A0101.SG1_rmdup.bam
-        initial_merge == F && run_trim_bam == F ~ paste0(Library_ID, "_rmdup.bam"),
+        initial_merge == F & run_trim_bam == F ~ paste0(Library_ID, "_rmdup.bam"),
         ## No merging, only trimming  BOB001.A0101.SG1.trimmed_doublestrand.bam
-        initial_merge == F && run_trim_bam == T ~ paste0(Library_ID, ".trimmed.bam"),
+        initial_merge == F & run_trim_bam == T ~ paste0(Library_ID, ".trimmed.bam"),
         ## Library merging, but no trimming LTN001_udghalf_libmerged_rmdup.bam
-        initial_merge == T && run_trim_bam == F ~ paste0(Sample_Name, "_udg", UDG_Treatment,"_libmerged_rmdup.bam"),
+        initial_merge == T & run_trim_bam == F ~ paste0(Sample_Name, "_udg", UDG_Treatment,"_libmerged_rmdup.bam"),
         ## Library merging, and also trimming VIX001_libmerged.trimmed_doublestrand.bam
-        initial_merge == T && run_trim_bam == T ~ paste0(Sample_Name, "_libmerged.trimmed.bam"),
+        initial_merge == T & run_trim_bam == T ~ paste0(Sample_Name, "_libmerged.trimmed.bam"),
         TRUE ~ NA_character_ ## Catch-all clause
       ),
 
@@ -98,9 +98,9 @@ infer_merged_bam_names <- function(parsed_tsv, run_trim_bam = NA) {
         ## If no additional merging, then this is same as initial_merge bam
         additional_merge == F ~ initial_merge_bam,
         ## If merge of UDG treatments needed, check for ssDNA dsDNA clash. If so, set to NA for safety.
-        additional_merge == T && strandedness_clash == T ~ NA_character_,
+        additional_merge == T & strandedness_clash == T ~ NA_character_,
         ## If merge of UDG treatments needed, trimmed/untrimmed status does not matter for naming
-        additional_merge == T && strandedness_clash == F ~ paste0(Sample_Name, "_libmerged_add.bam"),
+        additional_merge == T & strandedness_clash == F ~ paste0(Sample_Name, "_libmerged_add.bam"),
         TRUE ~ NA_character_ ## Catch-all clause
       ),
 
