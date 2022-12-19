@@ -45,13 +45,13 @@ read_angsd_cont_json <- function(angsd_cont_json) {
     dplyr::select(-.data$data) %>%
     ## Standardise column names
     dplyr::rename_with(., ~standardise_column_names(..1, prefix="angsd")) %>%
+    ## Make N/As into native R NA
+    dplyr::na_if("N/A") %>%
     ## Finally unnest the final nested columns to get a standard non-listed tibble
     ## Unnest after renaming so column names are more likely to stay consistent through time :crossed_fingers:
     tidyr::unnest(
       cols = dplyr::everything()
-    ) %>%
-    ## Make N/As into native R NA
-    dplyr::na_if("N/A")
+    )
   angsd_results
 }
 
