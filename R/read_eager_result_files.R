@@ -51,6 +51,12 @@ read_angsd_cont_json <- function(angsd_cont_json) {
     ## Unnest after renaming so column names are more likely to stay consistent through time :crossed_fingers:
     tidyr::unnest(
       cols = dplyr::everything()
+    ) %>%
+    ## Set type of all columns except library id and num_snps to dbl
+    dplyr::mutate(
+      dplyr::across(-c("angsd_library_id", "angsd_num_snps"),
+      .fns = as.double
+      )
     )
   angsd_results
 }
